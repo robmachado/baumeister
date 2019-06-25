@@ -53,16 +53,17 @@ class EfdResolv extends Resolve
         //$this->findDuplicatesSQL('produtos', 'COD_ITEM');
         
         $this->makeZ();
-        $this->makeB();
-        $this->makeC();
-        $this->makeD();
-        $this->makeE();
-        $this->makeG();
-        $this->makeH();
-        $this->makeK();
-        $this->makeU();
+        //$this->makeB();
+        //$this->makeC();
+        //$this->makeD();
+        //$this->makeE();
+        //$this->makeG();
+        //$this->makeH();
+        //$this->makeK();
+        //$this->makeU();
         
-        return $this->rebuild();
+        return $this->b0->get();
+        //return $this->rebuild();
         
     }
     
@@ -109,34 +110,27 @@ class EfdResolv extends Resolve
     protected function makeZ()
     {
         //Bloco 0 ABERTURA, IDENTIFICAÇÃO E REFERÊNCIAS
-        //Z0000
-        //Z0001
-        //Z0005
-        //Z0100
-        //Z0150 e Z0175 das tabelas parceiros e parceiros_alt => apenas os com entradas ou saídas
-        //Z0190 da tabela unidades => apenas as com entradas, saídas ou estoque
-        //Z0200 da tabela produtos => apenas os com entradas, saídas ou estoque
-        //Z0300
-        //Z0305
-        //Z0400 ???
-        //Z0450 ???
-        //Z0460 ???
-        //Z0500 ???
-        //Z0600 ???
         try {
             $this->b0 = new Block0();
             $n = -1;
             foreach($this->info as $i) {
                 $n++;
-                $key = key($i);
-                //echo "<H1>$key</H1>";
-                if (substr($key, 0, 1) !== '0') {
+                $key = (string) key($i);
+                echo "<H1>$key</H1>";
+                if ($key !== '00000') {
                     continue;
                 }
-                $func = "z".strtolower($key);
+                $func = "z{$key}";
+                //echo $func;
+                //echo "<br>";
                 $std = json_decode(json_encode($i[$key]));
-                $this->b0->$func($std);
+                //echo "<pre>";
+                //print_r($std);
+                //echo "</pre>";
+                $this->b0->z0000($std);
             }
+            $txt = $this->b0->get();
+            echo $txt;
        } catch (\Exception $e) {
             $this->error[] = $e->getMessage();
         } 

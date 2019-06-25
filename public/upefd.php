@@ -47,10 +47,12 @@ if(false !== $files) {
         if('.' !=  $file && '..' != $file && '.gitkeep' != $file) {
             $path = $folder_name.$file;
             $output .= "<div class=\"row\">
-                <div class=\"col-md-2\">
+                <div class=\"col-md-3\">
                 <a href=\"$path\">$file</a>
+                </div>   
+                <div class=\"col-md-2\">    
                 <button type=\"button\" class=\"btn btn-danger\" name=\"x\" id=\"$file\">Remover</button>
-                </div></div>";
+                </div></div><br>";
         }
     }
 }
