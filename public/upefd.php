@@ -4,8 +4,8 @@ ini_set('display_errors', 'On');
 
 require_once '../bootstrap.php';
 
-use \Moshe\EfdResolv;
-use \Moshe\BlocokResolv;
+use Baumeister\EfdResolv;
+use Baumeister\BlocokResolv;
 
 $folder_name = '../efd/';
 
@@ -22,8 +22,9 @@ if(!empty($_FILES)) {
         }
         move_uploaded_file($temp_file, $location);
     }
+    
     //
-    $efd = new EfdResolv($folder_name . '');
+    //$efd = new EfdResolv();
     //Bloco K
     //
     //unlink($plan);
