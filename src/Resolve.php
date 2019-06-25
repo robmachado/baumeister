@@ -2,7 +2,6 @@
 
 namespace Baumeister;
 
-//use Illuminate\Database\Capsule\Manager as Capsule;
 use Baumeister\DBase\Connection;
 
 class Resolve

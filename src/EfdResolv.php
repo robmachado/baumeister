@@ -1,6 +1,6 @@
 <?php
 
-namespace Moshe;
+namespace Baumeister;
 
 use NFePHP\EFD\Common\Parser;
 use NFePHP\EFD\EFDICMS;

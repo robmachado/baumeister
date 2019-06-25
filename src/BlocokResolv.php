@@ -2,12 +2,12 @@
 
 namespace Baumeister;
 
-use \PhpOffice\PhpSpreadsheet\IOFactory;
-use \Carbon\Carbon;
-use \NFePHP\Common\Strings;
-use \NFePHP\EFD\Blocks\ICMSIPI\BlockK;
-use Moshe\Resolve;
-use Moshe\Models\Estoque;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use Carbon\Carbon;
+use NFePHP\Common\Strings;
+use NFePHP\EFD\Blocks\ICMSIPI\BlockK;
+use Baumeister\Resolve;
+use Baumeister\Models\Estoque;
 
 class BlocokResolv extends Resolve
 {
