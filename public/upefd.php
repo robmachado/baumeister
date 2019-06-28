@@ -8,7 +8,15 @@ use Baumeister\BlocokResolv;
 
 $folder_name = realpath(__DIR__.'/../efd');
 
+//remove o arquivo
+if (isset($_POST["name"])) {
+    $filename = $folder_name. "/" .$_POST["name"];
+    unlink($filename);
+}
+
+
 if(!empty($_FILES)) {
+    clearFolder($folder_name);
     $n = count($_FILES['file']['tmp_name']);
     for ($x = 0; $x < $n; $x++) { 
         $temp_file = $_FILES['file']['tmp_name'][$x];
@@ -45,44 +53,35 @@ function process($txt, $plan, $folder_name)
     file_put_contents($folder_name.'/Erros.txt', $erros);
 }
 
-
-/*
-$output = "<div class=\"row\">";
-$output .= "<div class=\"spinner-border\" role=\"status\"><span class=\sr-only\">Loading...</span></div>";
-$output .= "</div>";
-echo $output;
- * 
- */
-/*
-//remove o arquivo
-if(isset($_POST["name"])) {
-    $filename = $folder_name.$_POST["name"];
-    unlink($filename);
-}
-
-if (!empty($_FILES)) {
-    
-} else {
-  
-    //mostra arquivos no diretorio 
+function clearFolder($folder)
+{
     $result = array();
-    $files = scandir($folder_name);
-    $output = '<div class="row">';
+    $files = scandir($folder);
     if(false !== $files) {
         foreach($files as $file) {
             if('.' !=  $file && '..' != $file && '.gitkeep' != $file) {
-                $path = $folder_name.$file;
-                $output .= "<div class=\"row\">
-                    <div class=\"col-md-2\">
-                    <a href=\"$path\">$file</a>
-                    <button type=\"button\" class=\"btn btn-danger\" name=\"x\" id=\"$file\">Remover</button>
-                    </div></div>";
+                unlink($folder.'/'.$file);
             }
         }
-    }
-    $output .= "";
-    echo $output;
+    } 
 }
- * 
- */
+
+//mostra arquivos no diretorio 
+$result = array();
+$files = scandir($folder_name);
+$output = '';
+if (false !== $files) {
+    foreach($files as $file) {
+        if ('.' !=  $file && '..' != $file && '.gitkeep' != $file) {
+            $path = '../efd/'.$file;
+            $output .= "<div class=\"row\">
+                <div class=\"col-md-4\"><a href=\"$path\">$file</a></div>
+                <div class=\"col-md-2\"><button type=\"button\" class=\"btn btn-danger\" name=\"x\" id=\"$file\">Remover</button></div>
+                </div>";
+        }
+        $output .= '<br>';
+    }
+}
+$output .= "";
+echo $output;
 

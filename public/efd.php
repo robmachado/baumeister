@@ -50,37 +50,14 @@
                         var _this = this;
                         _this.removeAllFiles();
                     }
-                    //sendMessage();
+                    list_image();
                 });
             },
         };
         
-        //sendMessage();
-        /*
-        function sendMessage(data) {
-            return new Promise((resolve, reject) => {
-                    $.ajax({ 
-                    method: 'GET', 
-                    url: 'terminate.php', 
-                    success: : resolve, 
-                    error: reject,
-                    data
-                });
-            });
-        }
-        */
-        function resolve(data)
-        {
-            $('#preview').html(data);
-        }
+        list_image();
         
-        function reject(data)
-        {
-            console.log(data);
-        }
-        
-        //list_image();
-        function spinner()
+        function list_image()
         {
             $.ajax({
                 url: "upefd.php",
@@ -90,20 +67,10 @@
             });
         }
         
-        function list_image()
-        {
-            $.ajax({
-                url: "process.php",
-                success: (data) => {
-                    $('#preview').html(data);
-                }
-            });
-        }
-        
         $(document).on('click', 'button[name="x"]', (e) => {
             let name = e.target.id;
             $.ajax({
-                url: "delete.php",
+                url: "upefd.php",
                 method: "POST",
                 data: {name: name},
                 success: (data) => {
