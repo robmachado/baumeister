@@ -13,20 +13,24 @@ use NFePHP\EFD\Blocks\ICMSIPI\BlockG;
 use NFePHP\EFD\Blocks\ICMSIPI\BlockH;
 use NFePHP\EFD\Blocks\ICMSIPI\BlockK;
 use NFePHP\EFD\Blocks\ICMSIPI\Block1;
+use Baumeister\BlocokResolv;
 use Baumeister\Resolve;
 use Baumeister\DBase\Connection;
 use Baumeister\Models\Produto;
 use Baumeister\Models\Unidade;
 use Baumeister\Models\Parceiro;
 use Baumeister\Models\ParceiroAlt;
+use Baumeister\Models\Estoque;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 class EfdResolv extends Resolve
 {
+    
+    public $dtini;
+    public $dtfim;
+    public $errors = [];
     protected $txtcontent;
-    protected $dtini;
-    protected $dtfim;
-    public $info;
+    protected $info;
     protected $b0;
     protected $bB;
     protected $bC;
@@ -47,28 +51,46 @@ class EfdResolv extends Resolve
     {
         $this->txtcontent = file_get_contents($pathtxt);
         $this->extractDataFromTxt();
-        //$this->save(Produto::class, '0200');
-        //$this->save(Unidade::class, '0190');
-        //$this->save(Parceiro::class, '0150', ['ref' => '0175', 'class' => ParceiroAlt::class, 'id' => 'parceiro_id']);
-        //$this->findDuplicatesSQL('produtos', 'COD_ITEM');
+        $this->dtini = $this->info[1]['0000']['DT_INI'];
+        $this->dtfim = $this->info[1]['0000']['DT_FIN'];
         
-        $this->makeZ();
-        //$this->makeB();
-        //$this->makeC();
-        //$this->makeD();
-        //$this->makeE();
-        //$this->makeG();
-        //$this->makeH();
-        //$this->makeK();
-        //$this->makeU();
-        
-        return $this->b0->get();
-        //return $this->rebuild();
-        
+        $this->save(Produto::class, '0200');
+        $this->save(Unidade::class, '0190');
+        $this->save(Parceiro::class, '0150', [
+            'ref' => '0175',
+            'class' => ParceiroAlt::class, 'id' => 'parceiro_id'
+        ]);
+        $this->findDuplicatesSQL('produtos', 'COD_ITEM');
+        $this->markItens();
     }
     
-    protected function rebuild()
+    public function processXls($pathxls)
     {
+        $bk = new BlocokResolv();
+        //filtra e carrega dados
+        $bk->process($pathxls);
+        if ($this->dtini !== $bk->dtini || $this->dtfim !== $bk->dtfim) {
+            $this->errors[] = "As datas da planilha divergem das do EFD.";
+        }
+        //salva em base de dados
+        $bk->saveStok();
+    }
+    
+    public function rebuild()
+    {
+        $this->makeK();
+        
+        $this->findNonExistentStokItens();
+        
+        $this->makeZ();
+        $this->makeB();
+        $this->makeC();
+        $this->makeD();
+        $this->makeE();
+        $this->makeG();
+        $this->makeH();
+        $this->makeU();
+        
         $efd = new EFDICMS();
         $efd->add($this->b0);
         $efd->add($this->bB);
@@ -99,8 +121,21 @@ class EfdResolv extends Resolve
               ->groupBy("$field")
               ->having('occurences', '>', 1)
               ->get();
-        foreach($duplicates as $dup) {
-            $this->errors[] = "Codigo do produto [{$dup->COD_ITEM}] duplicado no registro 0200.";
+        foreach ($duplicates as $dup) {
+            $this->errors[] = "Codigo do produto [{$dup->COD_ITEM}] "
+            . "duplicado no registro 0200.";
+        }
+    }
+    
+    public function findNonExistentStokItens()
+    {
+        $fails = Capsule::table('estoques')->leftJoin('produtos', function ($join) {
+            $join->on('estoques.codigo', '=', 'produtos.COD_ITEM');
+        })->whereNull('produtos.COD_ITEM')->get();
+        if (!empty($fails)) {
+            foreach ($fails as $fail) {
+                $this->errors[] = "Item {$fail->codigo} não consta dos registros 0200.";
+            }
         }
     }
     
@@ -110,31 +145,20 @@ class EfdResolv extends Resolve
     protected function makeZ()
     {
         //Bloco 0 ABERTURA, IDENTIFICAÇÃO E REFERÊNCIAS
-        try {
-            $this->b0 = new Block0();
-            $n = -1;
-            foreach($this->info as $i) {
-                $n++;
-                $key = (string) key($i);
-                echo "<H1>$key</H1>";
-                if ($key !== '00000') {
-                    continue;
-                }
-                $func = "z{$key}";
-                //echo $func;
-                //echo "<br>";
-                $std = json_decode(json_encode($i[$key]));
-                //echo "<pre>";
-                //print_r($std);
-                //echo "</pre>";
-                $this->b0->z0000($std);
+        $this->b0 = new Block0();
+        foreach ($this->info as $lin => $i) {
+            $key = (string) key($i);
+            if (substr($key, 0, 1) !== '0') {
+                break;
             }
-            $txt = $this->b0->get();
-            echo $txt;
-       } catch (\Exception $e) {
-            $this->error[] = $e->getMessage();
-        } 
-        
+            $func = "z{$key}";
+            $std = json_decode(json_encode($i[$key]));
+            try {
+                $this->b0->$func($std);
+            } catch (\Exception $e) {
+                $this->errors[] = "Linha [$lin] " . $e->getMessage();
+            }
+        }
     }
     
     protected function makeB()
@@ -146,105 +170,67 @@ class EfdResolv extends Resolve
             $std->IND_DAD = '1';
             $this->bB->b001($std);
         } catch (\Exception $e) {
-            $this->error[] = $e->getMessage();
-        } 
+            $this->errors[] = "" . $e->getMessage();
+        }
     }
     
     protected function makeC()
     {
         //Bloco C DOCUMENTOS FISCAIS I – MERCADORIAS (ICMS/IPI)
-        //C001 com movimentos IND_MOV = 0
-        //C100
-        //C101
-        //C105
-        //C110
-        //C111
-        //C112
-        //C113
-        //C115
-        //C140
-        //C141
-        //C160
-        //C170
-        //C190
-        //C191
-        //C500
-        //C590
-        try {
-            $this->bC = new BlockC();
-            $n = -1;
-            foreach($this->info as $i) {
-                $n++;
-                $key = key($i);
-                //echo "<H1>$key</H1>";
-                if (substr($key, 0, 1) !== 'C') {
-                    continue;
-                }
-                $func = strtolower($key);
-                $std = json_decode(json_encode($i[$key]));
-                $this->bC->$func($std);
+        $this->bC = new BlockC();
+        foreach ($this->info as $lin => $i) {
+            $key = key($i);
+            if (substr($key, 0, 1) !== 'C' || $key === 'C990') {
+                continue;
             }
-        } catch (\Exception $e) {
-            $this->error[] = $e->getMessage();
-        } 
-        
+            $func = strtolower($key);
+            $std = json_decode(json_encode($i[$key]));
+            try {
+                $this->bC->$func($std);
+            } catch (\Exception $e) {
+                $this->errors[] = "Linha [$lin] " . $e->getMessage();
+            }
+        }
     }
     
     protected function makeD()
     {
         //Bloco D DOCUMENTOS FISCAIS II - SERVIÇOS (ICMS) com movimento IND_MOV = 0
-        //D001
-        //D100
-        //D190
-        //D500
-        //D590
-        try {
-            $this->bD = new BlockD();
-            $n = -1;
-            foreach($this->info as $i) {
+        $this->bD = new BlockD();
+        $n = 1;
+        foreach ($this->info as $lin => $i) {
+            $key = key($i);
+            if (substr($key, 0, 1) !== 'D') {
                 $n++;
-                $key = key($i);
-                if (substr($key, 0, 1) !== 'D') {
-                    continue;
-                }
-                $func = strtolower($key);
-                $std = json_decode(json_encode($i[$key]));
-                $this->bD->$func($std);
+                continue;
             }
-        } catch (\Exception $e) {
-            $this->error[] = $e->getMessage();
-        }    
-        
+            $func = strtolower($key);
+            $std = json_decode(json_encode($i[$key]));
+            try {
+                $this->bD->$func($std);
+            } catch (\Exception $e) {
+                $this->errors[] = "Linha [$lin] " . $e->getMessage();
+            }
+        }
     }
     
     protected function makeE()
     {
         //Bloco E APURAÇÃO DO ICMS E DO IPI com movimento IND_MOV = 0
-        //E001
-        //E100
-        //E110
-        //E116
-        //E200
-        //E210
-        //E500
-        //E510
-        try {
-            $this->bE = new BlockE();
-            $n = -1;
-            foreach($this->info as $i) {
-                $n++;
-                $key = key($i);
-                if (substr($key, 0, 1) !== 'E') {
-                    continue;
-                }
-                $func = strtolower($key);
-                $std = json_decode(json_encode($i[$key]));
-                $this->bE->$func($std);
+        $this->bE = new BlockE();
+        foreach ($this->info as $lin => $i) {
+            $key = key($i);
+            if (substr($key, 0, 1) !== 'E') {
+                continue;
             }
-        } catch (\Exception $e) {
-            $this->error[] = $e->getMessage();
-        }    
-        
+            $func = strtolower($key);
+            $std = json_decode(json_encode($i[$key]));
+            try {
+                $this->bE->$func($std);
+            } catch (\Exception $e) {
+                $this->errors[] = "Linha [$lin] " . $e->getMessage();
+            }
+        }
     }
     
     protected function makeG()
@@ -257,7 +243,7 @@ class EfdResolv extends Resolve
             $std->IND_MOV = '1';
             $this->bG->g001($std);
         } catch (\Exception $e) {
-            $this->error[] = $e->getMessage();
+            $this->errors[] = "" . $e->getMessage();
         }
     }
     
@@ -271,8 +257,8 @@ class EfdResolv extends Resolve
             $std->IND_MOV = '1';
             $this->bH->h001($std);
         } catch (\Exception $e) {
-            $this->error[] = $e->getMessage();
-        }    
+            $this->errors[] = "" . $e->getMessage();
+        }
     }
     
     protected function makeK()
@@ -288,27 +274,48 @@ class EfdResolv extends Resolve
             $this->bK->k100($std);
             $stq = Estoque::all();
             foreach ($stq as $d) {
-                $parceiro = Parceiro::where('CNPJ', '=', $d->cnpj)->first();
-                if (empty($parceiro)) {
-                    $this->errors[] = "Item do estoque [{$d->codigo}] sem registro de Participante [CNPJ: {$d->cnpj}].";
-                    continue;
+                $cod_part = '';
+                if (!empty($d->cnpj)) {
+                    $parceiro = Parceiro::where('CNPJ', '=', $d->cnpj)->first();
+                    if (empty($parceiro)) {
+                        $this->errors[] = "Item do estoque [{$d->codigo}] "
+                        . "linha: $d->linha sem registro de Participante "
+                        . "[CNPJ: {$d->cnpj}].";
+                    } else {
+                        $cod_part = $parceiro->COD_PART;
+                    }
                 }
                 $std = new \stdClass();
                 $std->DT_EST = $this->dtfim;
                 $std->COD_ITEM = $d->codigo;
                 $std->QTD = $d->qtd;
                 $std->IND_EST = (int) $d->posse;
-                $std->COD_PART = ($f->posse == 0) ? '' : $parceiro->COD_PART;
+                $std->COD_PART = ($d->posse == 0) ? '' : $cod_part;
                 $this->bK->k200($std);
             }
         } catch (\Exception $e) {
-            $this->error[] = $e->getMessage();
+            $this->errors[] = $e->getMessage();
         }
     }
     
     protected function makeU()
     {
         //Bloco 1 OUTRAS INFORMAÇÕES
+        $this->b1 = new Block1();
+        foreach ($this->info as $lin => $i) {
+            $key = key($i);
+            if (substr($key, 0, 1) !== '1') {
+                continue;
+            }
+            $func = 'z'.strtolower($key);
+            $std = json_decode(json_encode($i[$key]));
+            try {
+                $this->b1->$func($std);
+            } catch (\Exception $e) {
+                $this->errors[] = "Linha [$lin] " . $e->getMessage();
+            }
+        }
+        /*
         try {
             $this->b1 = new Block1();
             $std = new \stdClass();
@@ -329,7 +336,9 @@ class EfdResolv extends Resolve
             $std->IND_GIAF4 = 'N';
             $this->b1->z1010($std);
         } catch (\Exception $e) {
-            $this->error[] = $e->getMessage();
-        }    
+            $this->errors[] = "" . $e->getMessage();
+        } 
+         * 
+         */
     }
 }

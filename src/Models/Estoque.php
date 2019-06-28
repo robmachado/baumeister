@@ -13,13 +13,14 @@ class Estoque extends Eloquent
         'descricao',
         'ncm',
         'qtd',
-        'unidade', 
+        'unidade',
         'csticms',
         'aliqicms',
         'tipo',
         'posse',
         'cnpj',
         'valor',
-        'cest'
+        'cest',
+        'linha'
     ];
 }

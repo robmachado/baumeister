@@ -3,6 +3,7 @@
 namespace Baumeister;
 
 use Baumeister\DBase\Connection;
+use \Baumeister\Models\Produto;
 
 class Resolve
 {
@@ -15,11 +16,30 @@ class Resolve
         $this->conn->connect();
     }
     
+    protected function markItens()
+    {
+        foreach ($this->info as $k => $i) {
+            $key = key($i);
+            if ($key !== 'C170') {
+                continue;
+            }
+            $std = json_decode(json_encode($i['C170']));
+            $item = Produto::where('COD_ITEM', $std->COD_ITEM)->first();
+            if (!empty($item)) {
+                $item->FLAG = 1;
+                $item->save();
+            } else {
+                $this->errors[] = "Linha [$k] $std->COD_ITEM não existe no registro.";
+            }
+        }
+    }
+
+
     protected function save($class, $ref, $comp = null)
     {
         $class::query()->truncate();
         $n = -1;
-        foreach($this->info as $i) {
+        foreach ($this->info as $i) {
             $n++;
             $key = key($i);
             if ($key !== $ref) {

@@ -28,7 +28,7 @@ class DBase
             $dbname = getenv('DB_NAME');
             $user = getenv('DB_USER');
             $pass = getenv('DB_PASS');
-        }    
+        }
         $dsn = "mysql:host={$host};dbname={$dbname}";
         try {
             $this->connection = new PDO($dsn, $user, $pass);
@@ -55,8 +55,8 @@ class DBase
                 $aRet = $sth->fetchAll();
             } else {
                 $resp = $this->connection->query($sqlComm);
-                if (!empty($resp)) {        
-                    foreach($resp as $row) {
+                if (!empty($resp)) {
+                    foreach ($resp as $row) {
                         $aRet[]=$row;
                     }
                 }
@@ -66,5 +66,4 @@ class DBase
         }
         return $aRet;
     }
-
 }

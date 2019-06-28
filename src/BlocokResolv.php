@@ -12,8 +12,8 @@ use Baumeister\Models\Estoque;
 class BlocokResolv extends Resolve
 {
     protected $data;
-    protected $dtini;
-    protected $dtfim;
+    public $dtini;
+    public $dtfim;
     
     protected $fields = [
         1 => [
@@ -127,15 +127,15 @@ class BlocokResolv extends Resolve
     public function saveStok()
     {
         Estoque::query()->truncate();
-        foreach($this->data as $i) {
+        foreach ($this->data as $i) {
             $std = json_decode(json_encode($i));
             $table = new Estoque();
             foreach ($std as $k => $field) {
                 if ($field !== '') {
                     $table->$k = strtoupper($field);
                 }
-            }    
-            $table->saveOrFail();    
+            }
+            $table->saveOrFail();
         }
     }
 
@@ -161,6 +161,7 @@ class BlocokResolv extends Resolve
         while ($value != "") {
             if ($qtd > 0) {
                 $cs = [];
+                $cs['linha'] = $row;
                 foreach ($this->fields as $k => $field) {
                     $std = json_decode(json_encode($field));
                     $valor = $sheet->getCellByColumnAndRow($k, $row)->getValue();
@@ -168,7 +169,14 @@ class BlocokResolv extends Resolve
                         $valor = (string) str_pad($valor, 2, '0', STR_PAD_LEFT);
                     }
                     $valor = $this->filter($valor, $std->type, $std->filter);
-                    $this->valid($std->name, $row, $valor, $std->regex, $std->required, $error);
+                    $this->valid(
+                        $std->name,
+                        $row,
+                        $valor,
+                        $std->regex,
+                        $error,
+                        $std->required
+                    );
                     $cs[$std->name] = $this->format($valor, $std->decimals);
                 }
                 $data[] = $cs;
@@ -221,8 +229,14 @@ class BlocokResolv extends Resolve
         return preg_replace($filter->from, $filter->to, $value);
     }
 
-    protected function valid($name, $row, $value, $regex, $required = false, &$error)
-    {
+    protected function valid(
+        $name,
+        $row,
+        $value,
+        $regex,
+        &$error,
+        $required = false
+    ) {
         if (empty($regex) || (empty($value) && !$required)) {
             return true;
         }
@@ -240,5 +254,4 @@ class BlocokResolv extends Resolve
         }
         return $value;
     }
-
 }

@@ -20,6 +20,7 @@ class Produto extends Eloquent
         'COD_GEN',
         'COD_LST',
         'ALIQ_ICMS',
-        'CEST'
+        'CEST',
+        'FLAG'
     ];
 }
