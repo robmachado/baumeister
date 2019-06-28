@@ -35,7 +35,7 @@
     $(document).ready(() => {
         Dropzone.options.dropzoneFrom = {
             autoProcessQueue: false,
-            dictDefaultMessage: "Arraste seus arquivos para cá!",
+            dictDefaultMessage: "Arraste seus arquivos EFD.txt e BlocoK.xslx para cá!",
             acceptedFiles: ".txt, .xlsx",
             maxFiles: 2,
             uploadMultiple: true,
