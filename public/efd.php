@@ -35,7 +35,7 @@
     $(document).ready(() => {
         Dropzone.options.dropzoneFrom = {
             autoProcessQueue: false,
-            dictDefaultMessage: "Arraste seus arquivos EFD.txt e BlocoK.xslx para cá!",
+            dictDefaultMessage: "Arraste seus arquivos EFD.txt e BlocoK.xlsx para cá!, ou clique.<br>Tenha certeza que ambos representam dados do mesmo período.",
             acceptedFiles: ".txt, .xlsx",
             maxFiles: 2,
             uploadMultiple: true,
@@ -50,14 +50,14 @@
                         var _this = this;
                         _this.removeAllFiles();
                     }
-                    list_image();
+                    listFiles();
                 });
             },
         };
         
-        list_image();
+        listFiles();
         
-        function list_image()
+        function listFiles()
         {
             $.ajax({
                 url: "upefd.php",
