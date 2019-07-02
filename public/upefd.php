@@ -6,7 +6,7 @@ require_once '../bootstrap.php';
 use Baumeister\EfdResolv;
 use Baumeister\BlocokResolv;
 
-$folder_name = realpath(__DIR__.'/../efd');
+$folder_name = realpath(__DIR__.'/storage');
 
 
 if(!empty($_FILES)) {
