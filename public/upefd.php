@@ -8,12 +8,6 @@ use Baumeister\BlocokResolv;
 
 $folder_name = realpath(__DIR__.'/../efd');
 
-//remove o arquivo
-if (isset($_POST["name"])) {
-    $filename = $folder_name. "/" .$_POST["name"];
-    unlink($filename);
-}
-
 
 if(!empty($_FILES)) {
     clearFolder($folder_name);
@@ -64,6 +58,13 @@ function clearFolder($folder)
             }
         }
     } 
+}
+
+//remove o arquivo
+if (isset($_POST["name"])) {
+    $filename = $folder_name. "/" .$_POST["name"];
+    unlink($filename);
+    echo "sucesso";
 }
 
 //mostra arquivos no diretorio 
