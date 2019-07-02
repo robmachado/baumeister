@@ -74,7 +74,7 @@ $output = '';
 if (false !== $files) {
     foreach($files as $file) {
         if ('.' !=  $file && '..' != $file && '.gitkeep' != $file) {
-            $path = '../efd/'.$file;
+            $path = 'storage/'.$file;
             $output .= "<div class=\"row\">
                 <div class=\"col-md-4\"><a href=\"$path\">$file</a></div>
                 <div class=\"col-md-2\"><button type=\"button\" class=\"btn btn-danger\" name=\"x\" id=\"$file\">Remover</button></div>
