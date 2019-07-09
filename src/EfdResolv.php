@@ -21,6 +21,8 @@ use Baumeister\Models\Unidade;
 use Baumeister\Models\Parceiro;
 use Baumeister\Models\ParceiroAlt;
 use Baumeister\Models\Estoque;
+use Baumeister\Models;
+use Baumeister\Registers;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 class EfdResolv extends Resolve
@@ -53,15 +55,18 @@ class EfdResolv extends Resolve
         $this->extractDataFromTxt();
         $this->dtini = $this->info[1]['0000']['DT_INI'];
         $this->dtfim = $this->info[1]['0000']['DT_FIN'];
+        $reg = new Registers();
+        $reg->saveDataFromTxt($this->info);
         
-        $this->save(Produto::class, '0200');
-        $this->save(Unidade::class, '0190');
-        $this->save(Parceiro::class, '0150', [
-            'ref' => '0175',
-            'class' => ParceiroAlt::class, 'id' => 'parceiro_id'
-        ]);
-        $this->findDuplicatesSQL('produtos', 'COD_ITEM');
-        $this->markItens();
+        //$this->save(Produto::class, '0200');
+        //$this->save(Unidade::class, '0190');
+        //$this->save(Parceiro::class, '0150', [
+        //    'ref' => '0175',
+        //    'class' => ParceiroAlt::class, 'id' => 'parceiro_id'
+        //]);
+        //$this->findDuplicatesSQL('produtos', 'COD_ITEM');
+        //
+        //$this->markItens();
     }
     
     public function processXls($pathxls)
@@ -81,6 +86,7 @@ class EfdResolv extends Resolve
         $this->makeK();
         
         $this->findNonExistentStokItens();
+        $this->adjustNcmFromStokItens();
         
         $this->makeZ();
         $this->makeB();
@@ -134,7 +140,55 @@ class EfdResolv extends Resolve
         })->whereNull('produtos.COD_ITEM')->get();
         if (!empty($fails)) {
             foreach ($fails as $fail) {
+                //inserir o item de estoque na tabela produtos
+                $prod = new Produto();
+                $prod->COD_ITEM = $fail->codigo;
+                $prod->DESCR_ITEM = $fail->descricao;
+                $prod->COD_BARRA = null;
+                $prod->COD_ANT_ITEM = null;
+                $prod->UNID_INV = strtoupper($fail->unidade);
+                $prod->TIPO_ITEM = $fail->tipo;
+                $prod->COD_NCM = $fail->ncm;
+                $prod->EX_IPI = null;
+                $prod->COD_GEN = substr($fail->ncm, 0, 2);
+                $prod->COD_LST = null;
+                $prod->ALIQ_ICMS = $fail->aliqicms;
+                $prod->CEST = $fail->cest;
+                $prod->FLAG = 2;//marca como não consta do EFD original
+                $prod->save();
                 $this->errors[] = "Item {$fail->codigo} não consta dos registros 0200.";
+            }
+        }
+    }
+    
+    public function adjustNcmFromStokItens()
+    {
+        $fails = Produto::whereRaw('LENGTH(COD_NCM) < 8')->get();
+        if (!empty($fails)) {
+            foreach ($fails as $fail) {
+                $stq = Estoque::where('codigo', '=', $fail->COD_ITEM)->first();
+                if (!empty($stq)) {
+                    $fail->COD_NCM = $stq->ncm;
+                    $fail->save();
+                }
+            }
+        }
+    }
+    
+    public function insertZ0200FromStokItens()
+    {
+        $prods = Produto::where('FLAG', 2)->get();
+        if (!empty($prods)) {
+            foreach ($prods as $prod) {
+                $std = new \stdClass();
+                foreach($fields as $field => $value) {
+                    $std->$field = $value;
+                }
+                try {
+                    $this->b0->z0200($std);
+                } catch (\Exception $e) {
+                    $this->errors[] = "Item de estoque: " . $e->getMessage();
+                }
             }
         }
     }
@@ -151,8 +205,15 @@ class EfdResolv extends Resolve
             if (substr($key, 0, 1) !== '0') {
                 break;
             }
+            if ($key == '0300') {
+                $this->insertZ0200FromStokItens();
+            }
             $func = "z{$key}";
             $std = json_decode(json_encode($i[$key]));
+            if ($func === 'z0200') {
+                $prod = Produto::where('COD_ITEM',$std->COD_ITEM)->first();
+                $std->COD_NCM = $prod->COD_NCM;
+            }
             try {
                 $this->b0->$func($std);
             } catch (\Exception $e) {
@@ -207,6 +268,15 @@ class EfdResolv extends Resolve
             $func = strtolower($key);
             $std = json_decode(json_encode($i[$key]));
             try {
+                //correção das series
+                if ($key == 'D100') {
+                    if (
+                        ($std->COD_MOD == '57' || $std->COD_MOD == '67')
+                        && strlen($std->SER) < 3
+                    ) {
+                        $std->SER = str_pad($std->SER, 3, '0', STR_PAD_LEFT);
+                    }
+                }
                 $this->bD->$func($std);
             } catch (\Exception $e) {
                 $this->errors[] = "Linha [$lin] " . $e->getMessage();
